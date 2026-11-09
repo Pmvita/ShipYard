@@ -18,113 +18,113 @@ This checklist **is** the whole project. README = design; this file = build list
 
 ## 💰 Cost guard (do this first)
 
-- [ ] Create a **$1** AWS Budget + email alert (`ca-central-1` or your account default)
-- [ ] Plan to `terraform destroy` after each demo window
-- [ ] Confirm you will not leave ALB + Fargate up overnight
+- [x] Create a **$1** AWS Budget + email/SNS alert in Terraform (`ca-central-1`) — **activate on apply** with `alert_email` in tfvars
+- [x] Plan to `terraform destroy` after each demo window (documented in README)
+- [x] Confirm you will not leave ALB + Fargate up overnight (documented)
 
 ---
 
 ## 🏗️ Project setup
 
-- [ ] Repo layout: `app/`, `infra/`, `Dockerfile`, `.github/workflows/`
-- [ ] `.gitignore` (node_modules, dist, `.terraform/`, `*.tfstate*`, `.env`)
+- [x] Repo layout: `app/`, `infra/`, `Dockerfile`, `.github/workflows/`
+- [x] `.gitignore` (node_modules, dist, `.terraform/`, `*.tfstate*`, `.env`)
 - [x] MIT `LICENSE`
-- [ ] `app/package.json` — TypeScript, test runner, lint
-- [ ] ESLint + Prettier (match NimbusFlow if easy)
+- [x] `app/package.json` — TypeScript, test runner, lint
+- [x] ESLint + Prettier (match NimbusFlow)
 
 ---
 
 ## 🌐 Application
 
-- [ ] `GET /` — short JSON (`{ "service": "shipyard", "ok": true }`)
-- [ ] `GET /health` — `200` + `{ "status": "ok" }` (ALB/ECS target)
-- [ ] Listen on `PORT` env (default `8080`)
-- [ ] Unit test for `/health` (no AWS required)
-- [ ] Structured log line on startup (service name + port)
+- [x] `GET /` — short JSON (`{ "service": "shipyard", "ok": true }`)
+- [x] `GET /health` — `200` + `{ "status": "ok" }` (ALB/ECS target)
+- [x] Listen on `PORT` env (default `8080`)
+- [x] Unit test for `/health` (no AWS required)
+- [x] Structured log line on startup (service name + port)
 
 ---
 
 ## 🐳 Container
 
-- [ ] Multi-stage `Dockerfile` (build → runtime)
-- [ ] Runtime: Node alpine (or distroless), **non-root** user
-- [ ] `EXPOSE 8080` + `CMD` that starts the compiled app
-- [ ] `.dockerignore` (node_modules, .git, infra state)
-- [ ] Local verify: `docker build` + `docker run` + `curl /health`
+- [x] Multi-stage `Dockerfile` (build → runtime)
+- [x] Runtime: Node alpine, **non-root** user
+- [x] `EXPOSE 8080` + `CMD` that starts the compiled app
+- [x] `.dockerignore` (node_modules, .git, infra state)
+- [x] Local verify: `docker build` + `docker run` + `curl /health`
 
 ---
 
 ## 📦 Registry (ECR)
 
-- [ ] Terraform: ECR repository (scan on push optional, keep cheap)
-- [ ] Image tag strategy: git SHA (immutable) — document in README if you tweak
-- [ ] Lifecycle policy: keep last N images so ECR storage doesn’t grow forever
+- [x] Terraform: ECR repository (scan on push)
+- [x] Image tag strategy: git SHA (immutable) — documented in README
+- [x] Lifecycle policy: keep last N images
 
 ---
 
 ## ☁️ Runtime (ECS + ALB)
 
-- [ ] Terraform: VPC or default VPC + **public** subnets only (no NAT)
-- [ ] Security groups: ALB 80 from internet; tasks only from ALB SG
-- [ ] ALB + target group, health check path `/health`
-- [ ] ECS cluster + Fargate service, desired count **1**
-- [ ] Task definition: CPU/memory small, log driver `awslogs`
-- [ ] Deploy: new image tag → new task revision → rolling replace
-- [ ] Confirm failed health check does **not** drain all healthy tasks
+- [x] Terraform: VPC + **public** subnets only (no NAT)
+- [x] Security groups: ALB 80 from internet; tasks only from ALB SG
+- [x] ALB + target group, health check path `/health`
+- [x] ECS cluster + Fargate service, desired count **1**
+- [x] Task definition: CPU/memory small, log driver `awslogs`
+- [x] Deploy: new image tag → new task revision via Terraform apply (path A)
+- [x] Documented: at count=1, min healthy 0% — bad rollout may drop to zero hosts (alarm); not a dual-task drain
 
 ---
 
 ## 🔑 IAM
 
-- [ ] ECS **execution** role: ECR pull + logs for this log group
-- [ ] ECS **task** role: logs only (tighten if app needs nothing else)
-- [ ] GitHub Actions role via **OIDC** (no long-lived access keys in secrets)
-- [ ] OIDC role: push to this ECR repo + terraform plan/apply for this stack only
-- [ ] No `Resource = "*"` on write actions unless AWS forces it — comment why
+- [x] ECS **execution** role: ECR pull + logs for this log group
+- [x] ECS **task** role: logs only
+- [x] GitHub Actions role via **OIDC** (no long-lived access keys in secrets)
+- [x] OIDC role: push to this ECR repo + terraform plan/apply for this stack
+- [x] No `Resource = "*"` on write actions unless AWS forces it — commented in `iam.tf` / `oidc.tf`
 
 ---
 
 ## 🔬 Observability
 
-- [ ] Log group, **7-day** retention
-- [ ] One alarm: unhealthy hosts > 0 **or** ALB 5xx spike → SNS email
-- [ ] Confirm SNS subscription once
+- [x] Log group, **7-day** retention
+- [x] One alarm: unhealthy hosts > 0 → SNS
+- [ ] Confirm SNS subscription once — **after first apply** with `alert_email`
 
 ---
 
 ## 🔄 CI/CD (GitHub Actions)
 
-- [ ] Workflow on push to `main` (and PR: lint/test only)
-- [ ] Job: `npm ci` → lint → test
-- [ ] Job: build + push image to ECR tagged with `github.sha`
-- [ ] Job: `terraform plan` / `apply` with new image tag (or `aws ecs update-service --force-new-deployment` after first bootstrap — pick one and lock it here)
-- [ ] Document required GitHub secrets/vars (role ARN, region, state bucket if any)
-- [ ] PR check must **not** apply to AWS
+- [x] Workflow on push to `main` (and PR: lint/test only)
+- [x] Job: `npm ci` → lint → test
+- [x] Job: build + push image to ECR tagged with `github.sha` (skipped without `AWS_ROLE_ARN`)
+- [x] Job: `terraform plan` / `apply` with new image tag (skipped without `AWS_ROLE_ARN`)
+- [x] Document required GitHub secrets/vars (role ARN, region, state bucket if any)
+- [x] PR check must **not** apply to AWS
 
 **Deploy path lock (choose one when you implement — check the winner):**
 
-- [ ] A) Terraform apply on every main push (image tag variable)
+- [x] A) Terraform apply on every main push (image tag variable)
 - [ ] B) Terraform for infra once; Actions only pushes image + forces ECS deployment
 
 ---
 
 ## 🧪 Manual demo script
 
-- [ ] Apply stack → hit ALB URL `/` and `/health`
-- [ ] Push a trivial change → watch Actions → confirm new task
-- [ ] Break `/health` on purpose in a branch — confirm bad rollout doesn’t take all traffic (or document what Fargate actually does at count=1)
-- [ ] `terraform destroy` → confirm ALB/ECS gone
+- [ ] Apply stack → hit ALB URL `/` and `/health` — **AWS-only** (needs creds + bootstrap)
+- [ ] Push a trivial change → watch Actions → confirm new task — **AWS-only**
+- [ ] Break `/health` on purpose in a branch — confirm behavior at count=1 (documented)
+- [ ] `terraform destroy` → confirm ALB/ECS gone — **AWS-only**
 - [ ] Screenshot or short notes for the demo (optional, not in git if they show account IDs)
 
 ---
 
 ## 📄 Documentation
 
-- [x] README — design
+- [x] README — design + honest deploy status
 - [x] TODO — this file
-- [ ] Fill “Getting started” commands after first successful apply
+- [x] Fill “Getting started” commands (local + bootstrap + destroy)
 - [ ] Add resume bullets to Cloud Engineer resume **only after** demo + destroy works
-- [ ] Link from `Personal/Projects/5)DevOps/README.md` and Cloud labs index
+- [x] Link from `Projects/5)DevOps/README.md` (status updated to code + CI ready)
 
 ---
 
@@ -138,4 +138,4 @@ This checklist **is** the whole project. README = design; this file = build list
 
 ---
 
-*Last updated: 2026-09-23*
+*Last updated: 2026-11-08*
