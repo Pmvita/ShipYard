@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/coverage
+.git
+.github
+.terraform
+**/*.tfstate
+**/*.tfstate.*
+**/.env
+**/.env.*
+infra
+*.md
+LICENSE
+TODO.md
+.gitignore
